@@ -41,13 +41,18 @@ const DEFAULT_FAMILY_ID = "home";
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 
-<!-- ★ Firebase初期化（Babelより前に実行する必要がある） -->
+<!-- ★ Firebase初期化（設定済みの場合のみ有効） -->
 <script>
-  // Firebase初期化
-  firebase.initializeApp(FIREBASE_CONFIG);
-  window._db = firebase.database();
-
-  // 家族IDはURLハッシュ or デフォルト
+  // Firebaseが設定済みかチェック
+  const _firebaseReady = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
+  if(_firebaseReady){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      window._db = firebase.database();
+    }catch(e){ window._db = null; }
+  } else {
+    window._db = null; // 未設定 → ローカルストレージを使用
+  }
   window._FAMILY_ID = (location.hash.replace('#','').trim()) || DEFAULT_FAMILY_ID;
 </script>
 
@@ -78,20 +83,41 @@ const {useState, useEffect, useRef, useCallback} = React;
 const db        = window._db;
 const FAMILY_ID = window._FAMILY_ID;
 
-// Firebase読み書き
+// ── データ保存：Firebase設定済み→Firebase、未設定→localStorage ────────
+const LS_KEY = (key) => `pantry_${FAMILY_ID}_${key}`;
+
 const fbGet = async (key) => {
-  try {
-    const snap = await db.ref(`families/${FAMILY_ID}/${key}`).get();
-    return snap.exists() ? snap.val() : null;
-  } catch(e) { return null; }
+  if(db){
+    try {
+      const snap = await db.ref(`families/${FAMILY_ID}/${key}`).get();
+      return snap.exists() ? snap.val() : null;
+    } catch(e) { return null; }
+  } else {
+    // localStorage フォールバック
+    try {
+      const v = localStorage.getItem(LS_KEY(key));
+      return v ? JSON.parse(v) : null;
+    } catch(e) { return null; }
+  }
 };
+
 const fbSet = async (key, val) => {
-  try { await db.ref(`families/${FAMILY_ID}/${key}`).set(val); } catch(e) { console.warn(e); }
+  if(db){
+    try { await db.ref(`families/${FAMILY_ID}/${key}`).set(val); } catch(e) { console.warn(e); }
+  } else {
+    try { localStorage.setItem(LS_KEY(key), JSON.stringify(val)); } catch(e) { console.warn(e); }
+  }
 };
+
 const fbOn = (key, cb) => {
-  const ref = db.ref(`families/${FAMILY_ID}/${key}`);
-  ref.on('value', snap => { if(snap.exists()) cb(snap.val()); });
-  return () => ref.off();
+  if(db){
+    const ref = db.ref(`families/${FAMILY_ID}/${key}`);
+    ref.on('value', snap => { if(snap.exists()) cb(snap.val()); });
+    return () => ref.off();
+  } else {
+    // localStorageはリアルタイム同期なし → 何もしない
+    return () => {};
+  }
 };
 
 // ── SVG Icons ────────────────────────────────────────────────────────────
@@ -734,9 +760,9 @@ function App() {
       {modal==='settings'&&(<Modal title="設定・情報" onClose={()=>setModal(null)}>
         <div style={{background:'linear-gradient(135deg,#f0fdf4,#dcfce7)',borderRadius:14,padding:'16px',textAlign:'center',border:'1px solid #a7f3d0',marginBottom:14}}>
           <div style={{fontSize:30,marginBottom:6}}>👨‍👩‍👧</div>
-          <div style={{fontWeight:900,fontSize:15,color:'#065f46'}}>家族共有モード</div>
+          <div style={{fontWeight:900,fontSize:15,color:'#065f46'}}>{db?'👨‍👩‍👧 家族共有モード':'📱 ローカルモード'}</div>
           <div style={{fontFamily:'monospace',fontSize:13,fontWeight:700,color:'#059669',marginTop:4,background:'#fff',borderRadius:8,padding:'4px 10px',display:'inline-block'}}>#{FAMILY_ID}</div>
-          <div style={{fontSize:11,color:'#6b7280',marginTop:8,lineHeight:1.7}}>このURLを家族に送るだけで同期。<br/>別の家族IDは URL末尾に <b>#ID名</b> で切替</div>
+          <div style={{fontSize:11,color:'#6b7280',marginTop:8,lineHeight:1.7}}>{db?<>このURLを家族に送るだけで同期。<br/>別の家族IDは URL末尾に <b>#ID名</b> で切替</>:<>Firebase未設定のためこの端末のみ保存。<br/>家族と共有するにはFirebaseを設定してください。</>}</div>
         </div>
         <div style={{background:'#f8fafc',borderRadius:12,padding:'10px 14px',display:'flex',flexDirection:'column',gap:8,marginBottom:14}}>
           <IR label="現在の食材"   value={`${activeN}品`}/>
