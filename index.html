@@ -140,7 +140,6 @@ const HistIco  = p=><Svg {...p} d={["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.
 const UndoIco  = p=><Svg {...p} d={["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8","M3 3v5h5"]}/>;
 const SetIco   = p=><Svg {...p} d={["M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z","M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"]}/>;
 const CartIco  = p=><Svg {...p} d={["M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z","M3 6h18","M16 10a4 4 0 0 1-8 0"]}/>;
-const CamIco   = p=><Svg {...p} d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z","M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]}/>;
 const NoteIco  = p=><Svg {...p} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8","M16 17H8","M10 9H8"]}/>;
 const SpinSvg  = ({size=18})=>(
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
@@ -227,22 +226,8 @@ const callClaude=async(prompt,imageB64,mediaType)=>{
   return d.content?.[0]?.text?.trim()||'';
 };
 
-// 画像リサイズ＋圧縮（速度改善）
-const fileToB64=file=>new Promise((res,rej)=>{
-  const img=new Image();
-  const url=URL.createObjectURL(file);
-  img.onload=()=>{
-    URL.revokeObjectURL(url);
-    const MAX=800;
-    let w=img.width,h=img.height;
-    if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
-    const c=document.createElement('canvas');
-    c.width=w;c.height=h;
-    c.getContext('2d').drawImage(img,0,0,w,h);
-    res(c.toDataURL('image/jpeg',0.7).split(',')[1]);
-  };
-  img.onerror=rej;img.src=url;
-});
+
+
 
 // ── Status visuals ────────────────────────────────────────────────────────
 const vis=(item,isNew)=>{
@@ -289,11 +274,6 @@ function App() {
   const [processing,  setProcessing] = useState(false);
   const [consumingId, setConsumingId]= useState(null);
   const [expandedId,  setExpandedId] = useState(null);
-  const [isSelecting, setIsSelecting]= useState(false);   // 選択モード
-  const [selectedIds, setSelectedIds]= useState(new Set()); // 選択中ID
-  const [recipeModal, setRecipeModal]= useState(false);    // レシピモーダル
-  const [recipeText,  setRecipeText] = useState('');       // レシピ内容
-  const [recipeLoading,setRecipeLoading]=useState(false);  // レシピ生成中
   const [nName,setNName]=useState('');
   const [nDate,setNDate]=useState('');
   const [nQty,setNQty]=useState(1);
@@ -301,20 +281,9 @@ function App() {
   const [nMemo,setNMemo]=useState('');
   const [vegMode,setVegMode]=useState('purchase');
   const [purDate,setPurDate]=useState('');
-  const [ocrLoading,setOcrLoading]=useState(false);
-  const [scanModal,setScanModal]=useState(false);
-  const [scanState,setScanState]=useState('idle');
-  const [scanResult,setScanResult]=useState(null);
-  const [scanCount,setScanCount]=useState(0);
   const [shopInput,setShopInput]=useState('');
-  const videoRef=useRef(null);
-  const canvasRef=useRef(null);
-  const streamRef=useRef(null);
-  const scanTimer=useRef(null);
-  const scanActive=useRef(false);
   const recog=useRef(null);
   const saveTimer=useRef(null);
-  const fileRef=useRef(null);
   const importRef=useRef(null);
 
   // ── Firebase リアルタイム同期 ────────────────────────────────────────
@@ -369,34 +338,13 @@ function App() {
   const clearH=()=>{setItems(p=>p.filter(i=>i.status!=='consumed'));toast$('履歴を削除しました');};
 
   // ── レシピ生成 ────────────────────────────────────────────────────────
-  const openRecipe=()=>{
-    const targets = isSelecting && selectedIds.size>0
-      ? items.filter(i=>selectedIds.has(i.id))
-      : items.filter(i=>i.status!=='consumed');
-    if(targets.length===0){toast$('食材がありません','err');return;}
-    setRecipeModal(true);
-    setRecipeText('');
-    setRecipeLoading(true);
-    const list=targets.map(i=>{
-      const{dv}=fmtD(i.expiryDate);
-      return `・${i.name}${i.quantity>1?` ×${i.quantity}`:''}${dv<0?' (期限切れ)':dv<=3?` (あと${dv}日)`:''}`;
-    }).join('\n');
-    callClaude(`あなたは家庭料理のプロです。以下の食材で作れる料理を1品提案し、簡単なレシピを教えてください。\n\n【使える食材】\n${list}\n\n※調味料（醤油、みりん、塩、砂糖、油など）は自由に使ってOK。\n※期限が近い食材を優先して使う料理を優先してください。\n※日本語で、料理名・材料・作り方の順で答えてください。`).then(r=>{
-      setRecipeText(r);
-      setRecipeLoading(false);
-    }).catch(()=>{
-      setRecipeText('レシピの取得に失敗しました。APIキーを確認してください。');
-      setRecipeLoading(false);
-    });
-  };
-
   // ── Shopping ──────────────────────────────────────────────────────────
   const addShop=text=>{if(!text.trim())return;setShopping(p=>[...p,{id:uid(),text:text.trim(),done:false}]);setShopInput('');};
   const toggleShop=id=>setShopping(p=>p.map(i=>i.id===id?{...i,done:!i.done}:i));
   const removeShop=id=>setShopping(p=>p.filter(i=>i.id!==id));
   const clearDoneShop=()=>setShopping(p=>p.filter(i=>!i.done));
 
-  // ── カテゴリ remapお ──────────────────────────────────────────────────
+  // ── カテゴリ remap ────────────────────────────────────────────────────
   const remapCategory=(name,oldCat)=>{
     const d=detectCat(name);if(d!=='other')return d;
     return{veg:'leafy',meat:'pork',fish:'fish',dairy:'dairy',fruit:'fruit',other:'other'}[oldCat]||'other';
@@ -432,109 +380,23 @@ function App() {
       setListening(false);setProcessing(true);
       const transcript=e.results[0][0].transcript;
       try{
-        // Claude APIキーがあればAI解析、なければルールベース
         if(CLAUDE_API_KEY&&CLAUDE_API_KEY!=='YOUR_CLAUDE_API_KEY'){
           const t0=new Date();t0.setHours(0,0,0,0);
           const todayStr=toDStr(t0);
           const result=await callClaude(
-            `日本語の音声入力から食材情報を抽出してください。今日の日付は${todayStr}です。\n\n音声テキスト：「${transcript}」\n\n以下のJSON形式のみで返してください（説明文不要）：\n{"name":"食材名（ブランド名や産地があれば含む）","expiry":"消費期限YYYY-MM-DD形式（明日=明日の日付、今日=今日の日付、○日後=計算した日付、○月○日=その日付、不明なら購入日から7日後の${addD(todayStr,7)}）","category":"leafy/rootveg/fruitveg/mushroom/pork/beef/chicken/process/fish/seafood/egg/dairy/soy/citrus/fruit/condiment/grain/drink/frozen/other のどれか","quantity":個数(数値)}\n\n例1：「豚バラ明日2パック」→{"name":"豚バラ","expiry":"${addD(todayStr,1)}","category":"pork","quantity":2}\n例2：「ほうれん草今日買った」→{"name":"ほうれん草","expiry":"${addD(todayStr,3)}","category":"leafy","quantity":1}`
+            `日本語の音声入力から食材情報を抽出してください。今日の日付は${todayStr}です。\n\n音声テキスト：「${transcript}」\n\n以下のJSON形式のみで返してください（説明文不要）：\n{"name":"食材名（ブランド名や産地があれば含む）","expiry":"消費期限YYYY-MM-DD形式（明日=明日の日付、今日=今日の日付、○日後=計算した日付、○月○日=その日付、不明なら購入日から7日後の${addD(todayStr,7)}）","category":"leafy/rootveg/fruitveg/mushroom/pork/beef/chicken/process/fish/seafood/egg/dairy/soy/citrus/fruit/condiment/grain/drink/frozen/other のどれか","quantity":個数(数値)}\n\n例1：「豚バラ明日2パック」→{"name":"豚バラ","expiry":"${addD(todayStr,1)}","category":"pork","quantity":2}`
           );
           const parsed=JSON.parse(result.replace(/```json|```/g,'').trim());
-          if(parsed.name){
-            addItem(parsed.name, parsed.expiry||addD(todayStr,7), parsed.category||undefined, parsed.quantity||1);
-          } else {
-            const d=parseVoice(transcript);addItem(d.name,d.date,d.category,d.quantity);
-          }
-        } else {
-          // APIキーなし → ルールベース
-          const d=parseVoice(transcript);addItem(d.name,d.date,d.category,d.quantity);
-        }
-      }catch(err){
-        // AIエラー時はルールベースにフォールバック
-        const d=parseVoice(transcript);addItem(d.name,d.date,d.category,d.quantity);
-      }
+          if(parsed.name){addItem(parsed.name,parsed.expiry||addD(todayStr,7),parsed.category||undefined,parsed.quantity||1);}
+          else{const d=parseVoice(transcript);addItem(d.name,d.date,d.category,d.quantity);}
+        }else{const d=parseVoice(transcript);addItem(d.name,d.date,d.category,d.quantity);}
+      }catch{const d=parseVoice(transcript);addItem(d.name,d.date,d.category,d.quantity);}
       setProcessing(false);
     };
     r.onerror=()=>{setListening(false);toast$('音声認識エラー。マイク許可を確認してください','err');};
     r.onend=()=>setListening(false);
     recog.current=r;setListening(true);r.start();
   };
-
-  // ── カメラOCR（1枚） ──────────────────────────────────────────────────
-  const triggerCamera=()=>fileRef.current.click();
-  const handleFileChange=async e=>{
-    const file=e.target.files?.[0];if(!file)return;e.target.value='';
-    setOcrLoading(true);
-    try{
-      const b64=await fileToB64(file);const mt=file.type||'image/jpeg';
-      const result=await callClaude(`この商品画像から以下の2つを読み取って、必ずJSON形式のみで返してください（説明文不要）。\n{"name":"商品名（ブランド名や内容量含む簡潔な名前）","expiry":"賞味期限または消費期限をYYYY-MM-DD形式（見つからない場合はnull）"}\n例：{"name":"明治 おいしい牛乳 900ml","expiry":"2026-08-31"}`,b64,mt);
-      try{
-        const parsed=JSON.parse(result.replace(/```json|```/g,'').trim());
-        if(parsed.name)setNName(parsed.name);
-        if(parsed.expiry&&parsed.expiry!=='null'&&parsed.expiry!==null&&parsed.expiry.match(/^\d{4}-\d{2}-\d{2}$/)){setNDate(parsed.expiry);setVegMode('expiry');}
-        toast$(`📷 「${parsed.name||''}」 期限：${parsed.expiry||'認識できず'}`);
-      }catch{toast$('認識失敗','err');}
-    }catch{toast$('読み取りエラー','err');}
-    setOcrLoading(false);
-  };
-
-  // ── ライブスキャン ────────────────────────────────────────────────────
-  const openScan=async()=>{
-    if(!navigator.mediaDevices?.getUserMedia){
-      toast$('カメラ非対応ブラウザです','err');return;
-    }
-    setScanModal(true);setScanState('idle');setScanResult(null);setScanCount(0);scanActive.current=true;
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
-      streamRef.current=stream;
-      if(videoRef.current){videoRef.current.srcObject=stream;videoRef.current.play();}
-      setTimeout(()=>{if(scanActive.current){setScanState('scanning');doScan();}},1500);
-    }catch(e){
-      closeScan();
-      toast$('カメラの許可が必要です。ブラウザ設定でカメラを許可してください','err');
-    }
-  };
-  const closeScan=()=>{
-    scanActive.current=false;clearTimeout(scanTimer.current);
-    if(streamRef.current){streamRef.current.getTracks().forEach(t=>t.stop());streamRef.current=null;}
-    setScanModal(false);setScanState('idle');setScanResult(null);
-  };
-  const doScan=async()=>{
-    if(!scanActive.current)return;
-    if(!videoRef.current||!canvasRef.current){scanTimer.current=setTimeout(doScan,2500);return;}
-    const video=videoRef.current;const canvas=canvasRef.current;
-    // フレームを600pxに圧縮して送信速度改善
-    const MAX=600;
-    let w=video.videoWidth||640,h=video.videoHeight||480;
-    if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
-    canvas.width=w;canvas.height=h;
-    canvas.getContext('2d').drawImage(video,0,0,w,h);
-    const b64=canvas.toDataURL('image/jpeg',0.65).split(',')[1];
-    if(!b64){scanTimer.current=setTimeout(doScan,2500);return;}
-    try{
-      const result=await callClaude(`商品パッケージの画像です。以下をJSONのみで返してください（余計な文章不要）。\n{"name":"商品名（ブランド＋内容量など簡潔に）","expiry":"YYYY-MM-DD形式の賞味期限または消費期限（なければnull）","found":true}\n商品が写っていない・読み取れない場合は {"found":false} のみ返してください。`,b64,'image/jpeg');
-      if(!scanActive.current)return;
-      try{
-        const parsed=JSON.parse(result.replace(/```json|```/g,'').trim());
-        if(parsed.found!==false&&parsed.name){setScanResult(parsed);setScanState('found');return;}
-      }catch{}
-    }catch{}
-    if(scanActive.current)scanTimer.current=setTimeout(doScan,2500);
-  };
-  const confirmScanItem=()=>{
-    if(!scanResult)return;
-    const cat=detectCat(scanResult.name);
-    const date=(scanResult.expiry&&scanResult.expiry!=='null'&&scanResult.expiry!==null)?scanResult.expiry:isVegCat(cat)?calcExpiry(scanResult.name,today()):addD(today(),7);
-    setItems(prev=>{
-      const existing=prev.find(i=>i.name===scanResult.name&&i.expiryDate===date&&i.status==='active');
-      if(existing){toast$(`「${scanResult.name}」×${existing.quantity+1}に更新`);return prev.map(i=>i.id===existing.id?{...i,quantity:i.quantity+1}:i);}
-      const id=uid();setRecentId(id);toast$(`「${scanResult.name}」を追加`);
-      return[{id,name:scanResult.name,expiryDate:date,category:cat,quantity:1,status:'active',memo:''},...prev];
-    });
-    setScanCount(c=>c+1);setScanResult(null);setScanState('scanning');
-    if(scanActive.current)scanTimer.current=setTimeout(doScan,1200);
-  };
-  const skipScanItem=()=>{setScanResult(null);setScanState('scanning');if(scanActive.current)scanTimer.current=setTimeout(doScan,800);};
 
   // ── Derived ──────────────────────────────────────────────────────────
   const active=items.filter(i=>i.status!=='consumed');
@@ -572,7 +434,6 @@ function App() {
 
   return(
     <div style={{fontFamily:"'Noto Sans JP','Hiragino Sans',sans-serif",background:'#f0fdf4',minHeight:'100vh'}}>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{display:'none'}}/>
       <input ref={importRef} type="file" accept=".json,application/json" onChange={handleImport} style={{display:'none'}}/>
       <canvas ref={canvasRef} style={{display:'none'}}/>
 
@@ -589,11 +450,6 @@ function App() {
           </div>
           <div style={{display:'flex',gap:2,alignItems:'center'}}>
             <span style={{fontSize:10,color:'#94a3b8',fontFamily:'monospace',marginRight:4}}>#{FAMILY_ID}</span>
-            {view==='list'&&<HBtn active={isSelecting} onClick={()=>{setIsSelecting(!isSelecting);setSelectedIds(new Set());}}>
-              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-              </svg>
-            </HBtn>}
             <HBtn onClick={()=>setModal('settings')}><SetIco size={18}/></HBtn>
             <HBtn active={view==='history'} onClick={()=>{setView(v=>v==='history'?'list':'history');setFilter('all');}}>
               {view==='history'?<XIco size={18}/>:<HistIco size={18}/>}
@@ -613,18 +469,6 @@ function App() {
           </div>
         )}
       </header>
-      {/* 選択ヒントバー */}
-      {view==='list'&&isSelecting&&(
-        <div style={{background:'#fffbeb',borderBottom:'1px solid #fde68a',padding:'7px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:56,zIndex:9}}>
-          <span style={{fontSize:12,fontWeight:700,color:'#92400e'}}>
-            {selectedIds.size>0?`${selectedIds.size}品を選択中`:'食材をタップして選択'}
-          </span>
-          {selectedIds.size>0&&<button onClick={openRecipe} style={{fontSize:12,fontWeight:800,color:'#fff',background:'#16a34a',border:'none',borderRadius:8,padding:'5px 12px',display:'flex',alignItems:'center',gap:4}}>
-            👨‍🍳 レシピを作る
-          </button>}
-        </div>
-      )}
-
       {/* PANTRY LIST */}
       {(view==='list'||view==='history')&&(
         <main style={{padding:'6px 8px 80px',display:'flex',flexDirection:'column',gap:4}}>
@@ -634,23 +478,9 @@ function App() {
             const isNew=item.id===recentId,isConsuming=item.id===consumingId,isExpanded=item.id===expandedId;
             const v=vis(item,isNew),cc=CAT[item.category]??CAT.other,{disp}=fmtD(item.expiryDate),frozen=item.status==='frozen',isHistory=view==='history';
             return(
-              <div key={item.id} style={{background:isConsuming?'#dcfce7':isSelecting&&selectedIds.has(item.id)?'#f0fdf4':v.bg,borderRadius:10,overflow:'hidden',border:'1px solid',borderColor:isConsuming?'#86efac':isSelecting&&selectedIds.has(item.id)?'#86efac':(v.bar==='#e2e8f0'?'#e9f5e9':v.bar+'40'),boxShadow:isConsuming?'0 0 0 2px #86efac':isSelecting&&selectedIds.has(item.id)?'0 0 0 2px #86efac':'0 1px 3px rgba(0,0,0,.04)',transition:'all .18s',position:'relative'}}>
+              <div key={item.id} style={{background:isConsuming?'#dcfce7':v.bg,borderRadius:10,overflow:'hidden',border:'1px solid',borderColor:isConsuming?'#86efac':(v.bar==='#e2e8f0'?'#e9f5e9':v.bar+'40'),boxShadow:isConsuming?'0 0 0 2px #86efac':'0 1px 3px rgba(0,0,0,.04)',transition:'all .18s',position:'relative'}}>
                 {isConsuming&&(<div style={{position:'absolute',inset:0,background:'rgba(220,252,231,.93)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:5,borderRadius:10}}><div style={{display:'flex',alignItems:'center',gap:8}}><div style={{width:30,height:30,borderRadius:'50%',background:'#16a34a',display:'flex',alignItems:'center',justifyContent:'center',animation:'scaleIn .2s cubic-bezier(.34,1.56,.64,1)'}}><CheckIco size={17}/></div><span style={{fontWeight:800,fontSize:13,color:'#15803d'}}>消費済みにしました！</span></div></div>)}
-                <div onClick={()=>{
-                  if(isSelecting){
-                    setSelectedIds(prev=>{const n=new Set(prev);n.has(item.id)?n.delete(item.id):n.add(item.id);return n;});
-                  } else if(!isConsuming){
-                    setExpandedId(isExpanded?null:item.id);
-                  }
-                }} style={{display:'flex',alignItems:'center',cursor:'pointer',userSelect:'none'}}>
-                  <div style={{width:4,background:isSelecting&&selectedIds.has(item.id)?'#16a34a':v.bar,flexShrink:0,alignSelf:'stretch'}}/>
-                  {isSelecting&&(
-                    <div style={{padding:'0 4px 0 6px',flexShrink:0}}>
-                      <div style={{width:18,height:18,borderRadius:5,border:'2px solid',borderColor:selectedIds.has(item.id)?'#16a34a':'#d1d5db',background:selectedIds.has(item.id)?'#16a34a':'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                        {selectedIds.has(item.id)&&<CheckIco size={11}/>}
-                      </div>
-                    </div>
-                  )}
+                <div onClick={()=>!isConsuming&&setExpandedId(isExpanded?null:item.id)} style={{display:'flex',alignItems:'center',cursor:'pointer',userSelect:'none'}}>
                   <div style={{width:4,background:v.bar,flexShrink:0,alignSelf:'stretch'}}/>
                   <span style={{fontSize:16,padding:'0 6px 0 7px',flexShrink:0}}>{cc.emoji}</span>
                   <div style={{flex:1,minWidth:0,padding:'8px 0'}}>
@@ -716,19 +546,12 @@ function App() {
           <button onClick={startVoice} disabled={listening||processing} style={{flex:2,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px 0',borderRadius:9,border:'none',background:listening?'#f43f5e':processing?'#e2e8f0':'linear-gradient(135deg,#10b981,#059669)',color:processing?'#94a3b8':'#fff',fontSize:13,fontWeight:800,boxShadow:(listening||processing)?'none':'0 3px 10px rgba(16,185,129,.35)',animation:listening?'micPulse 1s ease-in-out infinite':'none',transition:'background .2s'}}>
             {listening?<><MicOff size={16}/> 聞いてます…</>:processing?<><SpinSvg size={16}/> AI解析中…</>:<><MicIco size={16}/> 音声で追加</>}
           </button>
-          <button onClick={openRecipe} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'10px 0',borderRadius:9,border:'1.5px solid #fde68a',background:'#fffbeb',color:'#92400e',fontSize:12,fontWeight:700}}>
-            👨‍🍳 レシピ
-          </button>
         </div>)}
         {(view==='history'||view==='shopping')&&(<button onClick={()=>setView('list')} style={{width:'100%',padding:'10px',borderRadius:9,border:'1.5px solid #e2e8f0',background:'#f8fafc',color:'#475569',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>← 食材リストに戻る</button>)}
       </div>
 
       {/* ADD MODAL */}
       {modal==='add'&&(<Modal title="食材を追加" onClose={()=>setModal(null)}>
-        <div style={{display:'flex',gap:8,marginBottom:14}}>
-          <button onClick={()=>{setModal(null);openScan();}} style={{flex:2,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'12px 8px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',fontSize:13,fontWeight:800,boxShadow:'0 3px 10px rgba(16,185,129,.3)'}}><CamIco size={17}/> かざして連続スキャン</button>
-          <button onClick={triggerCamera} disabled={ocrLoading} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'12px 6px',borderRadius:11,border:'1.5px solid #d1fae5',background:'#f0fdf4',color:'#059669',fontSize:12,fontWeight:700}}>{ocrLoading?<SpinSvg size={14}/>:<span style={{fontSize:16}}>📷</span>} 1枚撮影</button>
-        </div>
         <Fld label="商品名"><input value={nName} onChange={e=>setNName(e.target.value)} placeholder="例：国産豚バラ薄切り" style={iSt} autoFocus/></Fld>
         {showVegHelper&&(<div style={{marginTop:12,background:'#f0fdf4',borderRadius:10,padding:'10px 12px',border:'1px solid #bbf7d0'}}>
           <div style={{fontSize:11,fontWeight:700,color:'#065f46',marginBottom:8}}>🥬 野菜の期限入力方法</div>
@@ -774,70 +597,6 @@ function App() {
         <button onClick={()=>importRef.current.click()} style={{width:'100%',padding:11,borderRadius:10,border:'1px solid #a5b4fc',background:'#eef2ff',color:'#4338ca',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:8}}>📥 JSONファイルからインポート</button>
         <div style={{fontSize:10,color:'#94a3b8',textAlign:'center',lineHeight:1.6}}>Geminiアプリのバックアップファイルを読み込めます</div>
       </Modal>)}
-
-      {/* RECIPE MODAL */}
-      {recipeModal&&(
-        <Modal title="👨‍🍳 AIレシピ提案" onClose={()=>setRecipeModal(false)}>
-          <div style={{minHeight:180}}>
-            {recipeLoading?(
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 0',gap:12}}>
-                <SpinSvg size={32}/>
-                <div style={{fontSize:13,color:'#64748b'}}>レシピを考えています…</div>
-              </div>
-            ):(
-              <div style={{fontSize:14,lineHeight:1.85,color:'#1e293b',whiteSpace:'pre-wrap'}}>
-                {recipeText}
-              </div>
-            )}
-          </div>
-          {!recipeLoading&&(
-            <button onClick={openRecipe} style={{...pBt,marginTop:16,background:'linear-gradient(135deg,#f59e0b,#d97706)'}}>
-              🔄 別のレシピを提案
-            </button>
-          )}
-        </Modal>
-      )}
-
-      {/* LIVE SCAN MODAL */}
-      {scanModal&&(
-        <div style={{position:'fixed',inset:0,background:'#000',zIndex:100,display:'flex',flexDirection:'column'}}>
-          <video ref={videoRef} playsInline muted autoPlay style={{width:'100%',flex:1,objectFit:'cover',display:'block'}}/>
-          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',pointerEvents:'none'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 16px',background:'linear-gradient(to bottom,rgba(0,0,0,.7),transparent)'}}>
-              <div style={{color:'#fff',fontWeight:800,fontSize:15,display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:20}}>📦</span> 連続スキャン</div>
-              <button onClick={closeScan} style={{pointerEvents:'all',background:'rgba(255,255,255,.2)',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}><XIco size={18}/></button>
-            </div>
-            <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <div style={{width:260,height:200,borderRadius:16,border:'2px solid',borderColor:scanState==='found'?'#34d399':'rgba(255,255,255,.5)',boxShadow:scanState==='found'?'0 0 0 4px rgba(52,211,153,.3)':'none',background:'transparent',transition:'all .3s'}}/>
-            </div>
-            <div style={{background:'linear-gradient(to top,rgba(0,0,0,.85),transparent)',padding:'20px 16px 32px',pointerEvents:'all'}}>
-              {scanState==='scanning'&&(<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,color:'#fff',fontSize:13,fontWeight:600}}><SpinSvg size={16}/> 商品を認識中…</div>
-                <div style={{fontSize:11,color:'rgba(255,255,255,.6)'}}>パッケージを枠内に入れてください</div>
-                {scanCount>0&&<div style={{background:'rgba(52,211,153,.2)',border:'1px solid #34d399',borderRadius:999,padding:'3px 12px',fontSize:12,color:'#34d399',fontWeight:700}}>✓ {scanCount}品 追加済み</div>}
-              </div>)}
-              {scanState==='idle'&&<div style={{textAlign:'center',color:'rgba(255,255,255,.7)',fontSize:13}}>カメラ起動中…</div>}
-              {scanState==='found'&&scanResult&&(()=>{
-                const cat=detectCat(scanResult.name);
-                const date=(scanResult.expiry&&scanResult.expiry!=='null'&&scanResult.expiry!==null)?scanResult.expiry:isVegCat(cat)?calcExpiry(scanResult.name,today()):addD(today(),7);
-                const existing=items.find(i=>i.name===scanResult.name&&i.expiryDate===date&&i.status==='active');
-                return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
-                  <div style={{background:'rgba(255,255,255,.95)',borderRadius:14,padding:'12px 14px'}}>
-                    <div style={{fontSize:11,color:existing?'#d97706':'#059669',fontWeight:700,marginBottom:4}}>{existing?`⚠️ 既にあります → ×${existing.quantity+1}にまとめます`:'✅ 認識しました'}</div>
-                    <div style={{fontWeight:800,fontSize:15,color:'#1e293b',marginBottom:3}}>{scanResult.name}</div>
-                    <div style={{fontSize:12,color:'#64748b'}}>{(scanResult.expiry&&scanResult.expiry!=='null'&&scanResult.expiry!==null)?`📅 期限：${scanResult.expiry.replace(/-/g,'/')}`:'📅 期限：自動計算'}　{`${(CAT[cat]??CAT.other).emoji} ${(CAT[cat]??CAT.other).label}`}</div>
-                  </div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button onClick={skipScanItem} style={{flex:1,padding:'11px',borderRadius:10,border:'1px solid rgba(255,255,255,.3)',background:'rgba(255,255,255,.1)',color:'#fff',fontSize:13,fontWeight:700}}>スキップ</button>
-                    <button onClick={confirmScanItem} style={{flex:2,padding:'11px',borderRadius:10,border:'none',background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',fontSize:14,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><CheckIco size={16}/> {existing?`×${existing.quantity+1}に更新して次へ`:'追加して次へ'}</button>
-                  </div>
-                  {scanCount>0&&<div style={{textAlign:'center',fontSize:11,color:'rgba(255,255,255,.6)'}}>✓ すでに {scanCount}品 追加済み</div>}
-                </div>);
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
