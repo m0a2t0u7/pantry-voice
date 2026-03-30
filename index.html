@@ -43,17 +43,24 @@ const DEFAULT_FAMILY_ID = "home";
 
 <!-- ★ Firebase初期化（設定済みの場合のみ有効） -->
 <script>
-  // Firebaseが設定済みかチェック
-  const _firebaseReady = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-  if(_firebaseReady){
-    try{
+  window._db = null;
+  window._FAMILY_ID = (location.hash.replace('#','').trim()) || DEFAULT_FAMILY_ID;
+  try {
+    var _firebaseReady = (
+      typeof firebase !== 'undefined' &&
+      FIREBASE_CONFIG.apiKey &&
+      FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY' &&
+      FIREBASE_CONFIG.databaseURL &&
+      FIREBASE_CONFIG.databaseURL !== 'https://YOUR_PROJECT-default-rtdb.firebaseio.com'
+    );
+    if(_firebaseReady){
       firebase.initializeApp(FIREBASE_CONFIG);
       window._db = firebase.database();
-    }catch(e){ window._db = null; }
-  } else {
-    window._db = null; // 未設定 → ローカルストレージを使用
+    }
+  } catch(e) {
+    console.warn('Firebase init failed:', e);
+    window._db = null;
   }
-  window._FAMILY_ID = (location.hash.replace('#','').trim()) || DEFAULT_FAMILY_ID;
 </script>
 
 <style>
