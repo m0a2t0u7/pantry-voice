@@ -552,6 +552,11 @@ function App() {
           <button onClick={startVoice} disabled={listening||processing} style={{flex:2,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px 0',borderRadius:9,border:'none',background:listening?'#f43f5e':processing?'#e2e8f0':'linear-gradient(135deg,#10b981,#059669)',color:processing?'#94a3b8':'#fff',fontSize:13,fontWeight:800,boxShadow:(listening||processing)?'none':'0 3px 10px rgba(16,185,129,.35)',animation:listening?'micPulse 1s ease-in-out infinite':'none',transition:'background .2s'}}>
             {listening?<><MicOff size={16}/> 聞いてます…</>:processing?<><SpinSvg size={16}/> AI解析中…</>:<><MicIco size={16}/> 音声で追加</>}
           </button>
+          <button onClick={()=>setView('shopping')} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'10px 0',borderRadius:9,border:'1.5px solid #dcfce7',background:'#f0fdf4',color:'#059669',fontSize:13,fontWeight:700,position:'relative'}}>
+            <CartIco size={15}/>
+            {shopping.filter(s=>!s.done).length>0&&<span style={{position:'absolute',top:6,right:8,fontSize:9,fontWeight:800,background:'#e11d48',color:'#fff',borderRadius:999,padding:'1px 4px',lineHeight:1.4}}>{shopping.filter(s=>!s.done).length}</span>}
+            買い物
+          </button>
         </div>)}
         {(view==='history'||view==='shopping')&&(<button onClick={()=>setView('list')} style={{width:'100%',padding:'10px',borderRadius:9,border:'1.5px solid #e2e8f0',background:'#f8fafc',color:'#475569',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>← 食材リストに戻る</button>)}
       </div>
