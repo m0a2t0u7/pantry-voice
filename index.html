@@ -289,7 +289,9 @@ function App() {
   const [vegMode,setVegMode]=useState('purchase');
   const [purDate,setPurDate]=useState('');
   const [shopInput,setShopInput]=useState('');
+  const [shopListening,setShopListening]=useState(false);
   const recog=useRef(null);
+  const shopRecog=useRef(null);
   const saveTimer=useRef(null);
   const importRef=useRef(null);
 
@@ -346,7 +348,48 @@ function App() {
 
   // ── レシピ生成 ────────────────────────────────────────────────────────
   // ── Shopping ──────────────────────────────────────────────────────────
-  const addShop=text=>{if(!text.trim())return;setShopping(p=>[...p,{id:uid(),text:text.trim(),done:false}]);setShopInput('');};
+  const addShop=text=>{
+    const t=(text||shopInput).trim();
+    if(!t)return;
+    setShopping(p=>[...p,{id:uid(),text:t,done:false}]);
+    setShopInput('');
+  };
+
+  // ── 買い物リスト音声入力（複数商品対応）────────────────────────────────
+  const startShopVoice=()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){toast$('このブラウザは音声非対応です','err');return;}
+    const r=new SR();r.lang='ja-JP';
+    r.onresult=async e=>{
+      setShopListening(false);
+      const transcript=e.results[0][0].transcript;
+      // Claude APIがあれば複数商品に分割、なければそのまま追加
+      if(CLAUDE_API_KEY&&CLAUDE_API_KEY!=='YOUR_CLAUDE_API_KEY'){
+        try{
+          const result=await callClaude(
+            `以下の音声テキストから買い物商品のリストを抽出してください。\n「${transcript}」\n\n複数の商品が含まれている場合は分割して、JSON配列のみで返してください（説明文不要）。\n例：「りんごとバナナとパン」→["りんご","バナナ","パン"]\n例：「牛乳卵豚バラ」→["牛乳","卵","豚バラ"]\n例：「豆腐」→["豆腐"]`
+          );
+          const parsed=JSON.parse(result.replace(/```json|```/g,'').trim());
+          if(Array.isArray(parsed)&&parsed.length>0){
+            setShopping(p=>[...p,...parsed.filter(i=>i.trim()).map(text=>({id:uid(),text:text.trim(),done:false}))]);
+            toast$(`🎤 ${parsed.join('・')} を追加しました`);
+          }
+        }catch{
+          // フォールバック：そのまま追加
+          setShopping(p=>[...p,{id:uid(),text:transcript.trim(),done:false}]);
+          toast$(`🎤 「${transcript}」を追加しました`);
+        }
+      }else{
+        // APIキーなし：区切り文字で分割
+        const items=transcript.split(/[、。とやとで\s]+/).filter(i=>i.trim());
+        setShopping(p=>[...p,...items.map(text=>({id:uid(),text:text.trim(),done:false}))]);
+        toast$(`🎤 ${items.join('・')} を追加しました`);
+      }
+    };
+    r.onerror=()=>{setShopListening(false);toast$('音声認識エラー','err');};
+    r.onend=()=>setShopListening(false);
+    shopRecog.current=r;setShopListening(true);r.start();
+  };
   const toggleShop=id=>setShopping(p=>p.map(i=>i.id===id?{...i,done:!i.done}:i));
   const removeShop=id=>setShopping(p=>p.filter(i=>i.id!==id));
   const clearDoneShop=()=>setShopping(p=>p.filter(i=>!i.done));
@@ -523,9 +566,13 @@ function App() {
         <main style={{padding:'8px 10px 80px',display:'flex',flexDirection:'column',gap:0}}>
           <div style={{background:'#fff',borderRadius:12,padding:'10px',marginBottom:10,boxShadow:'0 1px 4px rgba(0,0,0,.06)',border:'1px solid #dcfce7'}}>
             <div style={{display:'flex',gap:6}}>
-              <input value={shopInput} onChange={e=>setShopInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addShop(shopInput)} onKeyUp={e=>e.key==='Enter'&&addShop(shopInput)} placeholder="追加する商品を入力…" style={{...iSt,flex:1,padding:'12px 12px',fontSize:15}}/>
-              <button onClick={()=>addShop(shopInput)} style={{padding:'12px 18px',borderRadius:9,border:'none',background:'#16a34a',color:'#fff',fontWeight:800,fontSize:16,display:'flex',alignItems:'center',flexShrink:0,minWidth:52}}><PlusIco size={18}/></button>
+              <input value={shopInput} onChange={e=>setShopInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addShop(shopInput);}}} placeholder="追加する商品を入力…" style={{...iSt,flex:1,padding:'12px 12px',fontSize:15}}/>
+              <button onPointerUp={()=>addShop(shopInput)} style={{padding:'12px 14px',borderRadius:9,border:'none',background:'#16a34a',color:'#fff',fontWeight:800,fontSize:16,display:'flex',alignItems:'center',flexShrink:0,touchAction:'manipulation'}}><PlusIco size={18}/></button>
+              <button onPointerUp={startShopVoice} disabled={shopListening} style={{padding:'12px 14px',borderRadius:9,border:'none',background:shopListening?'#f43f5e':'#059669',color:'#fff',display:'flex',alignItems:'center',flexShrink:0,touchAction:'manipulation',animation:shopListening?'micPulse 1s ease-in-out infinite':'none'}}>
+                {shopListening?<MicOff size={18}/>:<MicIco size={18}/>}
+              </button>
             </div>
+            {shopListening&&<div style={{fontSize:11,color:'#e11d48',fontWeight:700,textAlign:'center',marginTop:6}}>🎤 商品名を話してください…（複数OK）</div>}
           </div>
           {shopping.length===0?(<div style={{textAlign:'center',padding:'50px 20px',color:'#94a3b8'}}><div style={{fontSize:44,marginBottom:8}}>🛒</div><div style={{fontSize:13}}>買い物リストは空です</div></div>):(
             <>
