@@ -257,14 +257,29 @@ const filterFns={
 };
 
 // ── Samples ───────────────────────────────────────────────────────────────
-const samples=()=>{const t=today();return[
-  {id:uid(),name:'ほうれん草',        expiryDate:addD(t,-1),category:'leafy',  quantity:1,status:'active',memo:''},
-  {id:uid(),name:'国産豚ロース薄切り', expiryDate:t,          category:'pork',   quantity:1,status:'active',memo:''},
-  {id:uid(),name:'牛乳 900ml',        expiryDate:addD(t,2),  category:'dairy',  quantity:1,status:'active',memo:''},
-  {id:uid(),name:'大玉トマト',         expiryDate:addD(t,4),  category:'fruitveg',quantity:3,status:'active',memo:''},
-  {id:uid(),name:'天然銀鮭（切り身）', expiryDate:addD(t,5),  category:'fish',   quantity:2,status:'active',memo:''},
-  {id:uid(),name:'Mサイズ卵',          expiryDate:addD(t,14), category:'egg',    quantity:6,status:'active',memo:''},
-]};
+const samples=()=>[
+  {id:uid(),name:'栗ご飯',               expiryDate:'2026-04-03',category:'grain',    quantity:1,status:'active',memo:''},
+  {id:uid(),name:'アボカド',             expiryDate:'2026-04-07',category:'fruitveg', quantity:1,status:'active',memo:''},
+  {id:uid(),name:'合挽き肉 ニコ',        expiryDate:'2026-04-16',category:'pork',     quantity:1,status:'frozen', memo:''},
+  {id:uid(),name:'ギリシャヨーグルト',   expiryDate:'2026-04-24',category:'dairy',    quantity:1,status:'active',memo:''},
+  {id:uid(),name:'手羽中',               expiryDate:'2026-04-30',category:'chicken',  quantity:1,status:'active',memo:''},
+  {id:uid(),name:'豚肉バラ切り落とし',   expiryDate:'2026-04-30',category:'pork',     quantity:1,status:'active',memo:''},
+  {id:uid(),name:'アンパンマン うどん',  expiryDate:'2026-05-22',category:'grain',    quantity:1,status:'active',memo:''},
+  {id:uid(),name:'アンパンマン ラーメン',expiryDate:'2026-05-25',category:'grain',    quantity:1,status:'active',memo:''},
+  {id:uid(),name:'鍋キューブ',           expiryDate:'2026-06-01',category:'condiment',quantity:1,status:'active',memo:''},
+  {id:uid(),name:'うどんスープ',         expiryDate:'2026-06-01',category:'condiment',quantity:1,status:'active',memo:''},
+  {id:uid(),name:'ところてん',           expiryDate:'2026-06-25',category:'other',    quantity:1,status:'active',memo:''},
+  {id:uid(),name:'インスタント 赤だし',  expiryDate:'2026-07-01',category:'condiment',quantity:1,status:'active',memo:''},
+  {id:uid(),name:'インスタント味噌汁',   expiryDate:'2026-08-01',category:'condiment',quantity:1,status:'active',memo:''},
+  {id:uid(),name:'ビーフカレー',         expiryDate:'2026-10-01',category:'beef',     quantity:1,status:'active',memo:''},
+  {id:uid(),name:'うどんスープ',         expiryDate:'2026-10-01',category:'condiment',quantity:1,status:'active',memo:''},
+  {id:uid(),name:'海苔佃煮',             expiryDate:'2026-10-09',category:'other',    quantity:1,status:'active',memo:''},
+  {id:uid(),name:'みかん缶',             expiryDate:'2026-11-01',category:'citrus',   quantity:1,status:'active',memo:''},
+  {id:uid(),name:'コンポター アンパンマン',expiryDate:'2026-11-01',category:'grain',  quantity:1,status:'active',memo:''},
+  {id:uid(),name:'のどぐろ お茶漬け',    expiryDate:'2026-11-19',category:'fish',     quantity:1,status:'active',memo:''},
+  {id:uid(),name:'昆布 カツオだし',      expiryDate:'2026-12-01',category:'condiment',quantity:1,status:'active',memo:''},
+  {id:uid(),name:'コーンポタージュ2027年',expiryDate:'2027-01-31',category:'grain',   quantity:1,status:'active',memo:''},
+];
 
 // ════════════════════════════════════════════════════════════════════════════
 function App() {
@@ -360,7 +375,11 @@ function App() {
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){toast$('このブラウザは音声非対応です','err');return;}
     const r=new SR();r.lang='ja-JP';
+    r.interimResults=false;  // 途中経過を返さない
+    r.maxAlternatives=1;
     r.onresult=async e=>{
+      // 最終結果のみ処理（isFinalチェック）
+      if(!e.results[0].isFinal) return;
       setShopListening(false);
       const transcript=e.results[0][0].transcript;
       // Claude APIがあれば複数商品に分割、なければそのまま追加
@@ -426,7 +445,11 @@ function App() {
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){toast$('このブラウザは音声非対応です','err');return;}
     const r=new SR();r.lang='ja-JP';
+    r.interimResults=false;  // 途中経過を返さない
+    r.maxAlternatives=1;
     r.onresult=async e=>{
+      // 最終結果のみ処理（isFinalチェック）
+      if(!e.results[0].isFinal) return;
       setListening(false);setProcessing(true);
       const transcript=e.results[0][0].transcript;
       try{
@@ -448,7 +471,19 @@ function App() {
     recog.current=r;setListening(true);r.start();
   };
 
-  // ── Derived ──────────────────────────────────────────────────────────
+  // ── エクスポート ──────────────────────────────────────────────────────
+  const handleExport=()=>{
+    const data=items.filter(i=>i.status!=='consumed');
+    const json=JSON.stringify(data,null,2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const date=new Date();
+    const dateStr=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    a.href=url;a.download=`pantry_backup_${FAMILY_ID}_${dateStr}.json`;
+    a.click();URL.revokeObjectURL(url);
+    toast$(`📤 ${data.length}品をエクスポートしました`);
+  };
   const active=items.filter(i=>i.status!=='consumed');
   const activeN=items.filter(i=>i.status==='active').length;
   const frozenN=items.filter(i=>i.status==='frozen').length;
@@ -653,6 +688,7 @@ function App() {
           <IR label="買い物リスト" value={`${shopping.filter(s=>!s.done).length}品未購入`}/>
         </div>
         <button onClick={()=>importRef.current.click()} style={{width:'100%',padding:11,borderRadius:10,border:'1px solid #a5b4fc',background:'#eef2ff',color:'#4338ca',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:8}}>📥 JSONファイルからインポート</button>
+        <button onClick={handleExport} style={{width:'100%',padding:11,borderRadius:10,border:'1px solid #6ee7b7',background:'#f0fdf4',color:'#065f46',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:8}}>📤 JSONファイルにエクスポート</button>
         <div style={{fontSize:10,color:'#94a3b8',textAlign:'center',lineHeight:1.6}}>Geminiアプリのバックアップファイルを読み込めます</div>
       </Modal>)}
     </div>
